@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ca">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UE, Eurozona i Schengen – Diagrama de Venn</title>
+  <link rel="stylesheet" href="estil.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <style>
+    .regions {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      font-size: 14px
+    }
+
+    .regions li {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      margin-bottom: 4px
+    }
+
+    .regions li.on {
+      border-color: var(--axis);
+      background: var(--page)
+    }
+
+    .regions .r-h {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      color: var(--ink)
+    }
+
+    .regions .r-p {
+      color: var(--ink-2);
+      font-size: 13px
+    }
+
+    .regions li.buit .r-h {
+      color: var(--muted);
+      font-weight: 500
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <nav><a href="index.html">← PAC2 · Visualització de dades</a> · Tècnica II: Diagrama de Venn</nav>
+    <h1>"Europa" no és un sol club: UE, eurozona i Schengen no coincideixen</h1>
+    <p class="sub">31 països europeus segons la seva pertinença a tres conjunts (2026). Cada zona del diagrama és una
+      combinació possible; el número indica quants països hi ha. Passa el ratolí per sobre d'una zona per veure quins
+      són.</p>
+
+    <div class="card layout">
+      <div id="chart" role="img"
+        aria-label="Diagrama de Venn de tres conjunts: Unió Europea, Eurozona i espai Schengen"></div>
+      <aside>
+        <ul class="regions" id="regions"></ul>
+      </aside>
+    </div>
+
+    <details>
+      <summary>Veure les dades en taula</summary>
+      <table id="taula">
+        <thead>
+          <tr>
+            <th>País</th>
+            <th class="n">UE</th>
+            <th class="n">Eurozona</th>
+            <th class="n">Schengen</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </details>
+
+    <footer>
+      <p><b>Fonts:</b> Unió Europea – "Countries using the euro" (actualitzat 12/01/2026); Comissió Europea, Migration
+        and Home Affairs – "Schengen area".</p>
+      <p><b>Preparació:</b> matriu binària país × conjunt construïda a partir de les llistes oficials. Xipre es compta
+        fora de Schengen (encara manté controls fronterers). Els microestats que fan servir l'euro per acord (Andorra,
+        Mònaco, San Marino, Vaticà) no són membres oficials de l'eurozona i s'han exclòs. Les mides dels cercles no són
+        proporcionals al nombre de països.</p>
+      <p>Jaume Jofre Bravo · M2.959 Visualització de dades · UOC · Eina: D3.js</p>
+    </footer>
+  </main>
+  <div class="tip" id="tip"></div>
+  <script>
+    // Càrrega del CSV net: una fila per país amb tres columnes 0/1 (UE, Eurozona, Schengen)
+    d3.csv("dades/venn_ue_eurozona_schengen_2026.csv", d3.autoType).then(rows => {
+    const paisos = rows
+      .map(r => ({ pais: r.pais, ue: r.UE, eu: r.Eurozona, sc: r.Schengen, key: `${r.UE}${r.Eurozona}${r.Schengen}` }))
+      .sort((x, y) => x.pais.localeCompare(y.pais, "ca"));
+
+    const regions = [
+      { key: "111", nom: "UE + Eurozona + Schengen" },
+      { key: "101", nom: "UE + Schengen (sense euro)" },
+      { key: "001", nom: "Només Schengen (fora de la UE)" },
+      { key: "110", nom: "UE + Eurozona (sense Schengen)" },
+      { key: "100", nom: "Només UE" },
+      { key: "010", nom: "Només Eurozona" },
+      { key: "011", nom: "Eurozona + Schengen (sense UE)" }
+    ].map(r => ({ ...r, paisos: paisos.filter(p => p.key === r.key).map(p => p.pais) }));
+    const byKey = Object.fromEntries(regions.map(r => [r.key, r]));
+
+    const W = 560, H = 500, r = 140, cx = W / 2, cy = 240;
+    const sets = [
+      { id: "ue", nom: "Unió Europea (27)", x: cx - 80, y: cy - 55, c: "--s1", lx: cx - 165, ly: cy - 200, a: "end" },
+      { id: "eu", nom: "Eurozona (21)", x: cx + 80, y: cy - 55, c: "--s2", lx: cx + 165, ly: cy - 200, a: "start" },
+      { id: "sc", nom: "Schengen (29)", x: cx, y: cy + 85, c: "--s3", lx: cx, ly: cy + 250, a: "middle" }
+    ];
+    const pos = { "100": [cx - 150, cy - 95], "010": [cx + 150, cy - 95], "001": [cx, cy + 165], "110": [cx, cy - 125], "101": [cx - 100, cy + 50], "011": [cx + 100, cy + 50], "111": [cx, cy - 10] };
+
+    const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const svg = d3.select("#chart").append("svg").attr("viewBox", `0 0 ${W} ${H}`);
+    const circ = svg.append("g").selectAll("circle").data(sets).join("circle")
+      .attr("cx", d => d.x).attr("cy", d => d.y).attr("r", r).attr("stroke-width", 2).attr("fill-opacity", 0.14);
+    const names = svg.append("g").selectAll("text").data(sets).join("text")
+      .attr("x", d => d.lx).attr("y", d => d.ly).attr("text-anchor", d => d.a)
+      .style("font-weight", 650).style("font-size", "15px").style("fill", "var(--ink)").text(d => d.nom);
+
+    const labels = svg.append("g").selectAll("g").data(regions).join("g").attr("transform", d => `translate(${pos[d.key]})`);
+    labels.append("text").attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+      .style("font-size", d => d.paisos.length ? "26px" : "18px").style("font-weight", d => d.paisos.length ? 650 : 400)
+      .style("fill", d => d.paisos.length ? "var(--ink)" : "var(--muted)")
+      .text(d => d.paisos.length ? d.paisos.length : "0");
+
+    function paint() {
+      circ.attr("fill", d => css(d.c)).attr("stroke", d => css(d.c));
+    }
+    paint();
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", paint);
+
+    // Panell lateral
+    const ul = d3.select("#regions");
+    const lis = ul.selectAll("li").data(regions).join("li").attr("class", d => d.paisos.length ? "" : "buit");
+    lis.append("div").attr("class", "r-h").html(d => `<span>${d.nom}</span><span>${d.paisos.length}</span>`);
+    lis.append("div").attr("class", "r-p").text(d => d.paisos.length ? d.paisos.join(", ") : "Cap país");
+
+    // Interacció: detectar la zona sota el punter
+    const tip = d3.select("#tip");
+    function regionAt(px, py) {
+      const inS = sets.map(s => (px - s.x) ** 2 + (py - s.y) ** 2 <= r * r ? 1 : 0);
+      const k = inS.join("");
+      return k === "000" ? null : byKey[k];
+    }
+    svg.on("pointermove", e => {
+      const [px, py] = d3.pointer(e);
+      const reg = regionAt(px, py);
+      lis.classed("on", d => reg && d.key === reg.key);
+      if (!reg) { tip.style("opacity", 0); return; }
+      const body = reg.paisos.length ? reg.paisos.join(", ") : "Cap país. L'eurozona és un subconjunt de la UE: tot país amb euro oficial és membre de la UE.";
+      tip.style("opacity", 1).style("left", (e.clientX + 14) + "px").style("top", (e.clientY + 14) + "px")
+        .html(`<b>${reg.nom} · ${reg.paisos.length}</b><br>${body}`);
+    }).on("pointerleave", () => { tip.style("opacity", 0); lis.classed("on", false); });
+
+    // Taula
+    const tb = d3.select("#taula tbody");
+    const m = v => v ? "●" : "–";
+    paisos.forEach(p => tb.append("tr").html(`<td>${p.pais}</td><td class="n">${m(p.ue)}</td><td class="n">${m(p.eu)}</td><td class="n">${m(p.sc)}</td>`));
+    });
+  </script>
+</body>
+
+</html>

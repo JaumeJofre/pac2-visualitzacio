@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ca">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Temperatura màxima a Barcelona – Ridgeline chart</title>
+  <link rel="stylesheet" href="estil.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <style>
+    .ramp {
+      height: 10px;
+      border-radius: 5px;
+      margin: 6px 0 2px;
+      background: linear-gradient(90deg, #fdd0a2, #fd8d3c, #d94801, #7f2704)
+    }
+
+    .ramp-l {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .note {
+      font-size: 14px;
+      color: var(--ink-2);
+      margin-top: 16px
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <nav><a href="index.html">← PAC2 · Visualització de dades</a> · Tècnica III: Ridgeline chart</nav>
+    <h1>Com canvia la temperatura màxima de Barcelona al llarg de l'any</h1>
+    <p class="sub">Distribució de la temperatura màxima diària per mes a l'Observatori Fabra (Barcelona), 2016–2025.
+      Cada cresta agrupa uns 300 dies; com més alta en un punt, més dies van tenir aquella màxima.</p>
+
+    <div class="card layout">
+      <div id="chart" role="img" aria-label="Ridgeline chart de la temperatura màxima diària a Barcelona per mes"></div>
+      <aside>
+        <div class="kpi" id="kpi">—</div>
+        <div class="kpi-l">diferència entre la mediana de juliol i la de gener</div>
+        <div style="margin-top:20px;font-size:14px;color:var(--ink-2)">Color: mediana del mes</div>
+        <div class="ramp"></div>
+        <div class="ramp-l"><span>12 °C</span><span>30 °C</span></div>
+        <p class="note">La línia vertical de cada cresta marca la mediana. Passa el ratolí per sobre d'un mes per
+          veure'n el detall.</p>
+      </aside>
+    </div>
+
+    <details>
+      <summary>Veure el resum per mes en taula</summary>
+      <table id="taula">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th class="n">Dies</th>
+            <th class="n">Mín.</th>
+            <th class="n">P10</th>
+            <th class="n">Mediana</th>
+            <th class="n">P90</th>
+            <th class="n">Màx.</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </details>
+
+    <footer>
+      <p><b>Font:</b> Dades obertes de Catalunya – Servei Meteorològic de Catalunya, "Dades meteorològiques diàries de
+        la XEMA" (estació D5, variable 1001 · Temperatura màxima diària).</p>
+      <p><b>Preparació:</b> 3.653 dies (01/01/2016–31/12/2025), cap dia absent. Valors extrems revisats i conservats
+        (1,2 °C el 27/02/2018, episodi de neu; 39,5 °C el 30/07/2024). L'observatori és a uns 410 m d'altitud. Densitat
+        estimada amb kernel gaussià (amplada de banda 1,2 °C).</p>
+      <p>Jaume Jofre Bravo · M2.959 Visualització de dades · UOC · Eina: D3.js</p>
+    </footer>
+  </main>
+  <div class="tip" id="tip"></div>
+  <script>
+    const mesos = ["Gener", "Febrer", "Març", "Abril", "Maig", "Juny", "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"];
+    const fmt = v => v.toLocaleString("ca-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " °C";
+
+    d3.csv("dades/ridgeline_tmax_bcn_fabra_2016_2025.csv", d3.autoType).then(rows => {
+      const per = mesos.map((m, i) => {
+        const v = rows.filter(r => r.mes_num === i + 1).map(r => r.tmax).sort(d3.ascending);
+        return { mes: m, v, n: v.length, med: d3.quantileSorted(v, .5), p10: d3.quantileSorted(v, .1), p90: d3.quantileSorted(v, .9), min: v[0], max: v[v.length - 1] };
+      });
+
+      const W = 640, rowH = 34, overlap = 1.9, M = { t: rowH * overlap, r: 16, b: 40, l: 84 };
+      const H = M.t + rowH * 12 + M.b;
+      const x = d3.scaleLinear().domain([0, 42]).range([M.l, W - M.r]);
+      const y = d3.scaleBand().domain(mesos).range([M.t, M.t + rowH * 12]);
+      const grid = d3.range(0, 42.01, 0.25);
+      const gauss = k => u => Math.exp(-0.5 * (u / k) ** 2) / (k * Math.sqrt(2 * Math.PI));
+      const K = gauss(1.2);
+      per.forEach(p => p.dens = grid.map(t => [t, d3.mean(p.v, v => K(t - v))]));
+      const maxD = d3.max(per, p => d3.max(p.dens, d => d[1]));
+      const h = d3.scaleLinear().domain([0, maxD]).range([0, rowH * overlap]);
+      const color = d3.scaleSequential(t => d3.interpolateOranges(0.3 + 0.65 * t)).domain([12, 30]);
+
+      const svg = d3.select("#chart").append("svg").attr("viewBox", `0 0 ${W} ${H}`);
+      
+      // Graella vertical
+      svg.append("g").selectAll("line").data(x.ticks(8)).join("line")
+        .attr("x1", d => x(d)).attr("x2", d => x(d)).attr("y1", M.t - rowH * overlap + 10).attr("y2", M.t + rowH * 12)
+        .attr("stroke", "var(--grid)").attr("stroke-width", 1);
+      svg.append("g").attr("transform", `translate(0,${M.t + rowH * 12})`)
+        .call(d3.axisBottom(x).ticks(8).tickFormat(d => d + " °C").tickSize(0).tickPadding(10))
+        .call(g => g.select(".domain").attr("stroke", "var(--axis)"));
+
+      const area = d3.area().curve(d3.curveBasis).x(d => x(d[0])).y0(0).y1(d => -h(d[1]));
+      const line = d3.line().curve(d3.curveBasis).x(d => x(d[0])).y(d => -h(d[1]));
+      const ridges = svg.append("g").selectAll("g").data(per).join("g")
+        .attr("transform", p => `translate(0,${y(p.mes) + y.bandwidth()})`);
+      ridges.append("path").attr("d", p => area(p.dens)).attr("fill", p => color(p.med)).attr("fill-opacity", .92);
+      ridges.append("path").attr("d", p => line(p.dens)).attr("fill", "none").attr("stroke", "var(--surface)").attr("stroke-width", 2);
+      ridges.append("line").attr("x1", p => x(p.med)).attr("x2", p => x(p.med)).attr("y1", 0)
+        .attr("y2", p => -h(d3.mean(p.v, v => K(p.med - v)))).attr("stroke", "var(--surface)").attr("stroke-width", 2);
+      ridges.append("text").attr("x", M.l - 10).attr("y", -4).attr("text-anchor", "end").text(p => p.mes).style("fill", "var(--ink)");
+
+      // Interacció per fila
+      const tip = d3.select("#tip");
+      svg.append("g").selectAll("rect").data(per).join("rect")
+        .attr("x", 0).attr("width", W).attr("y", p => y(p.mes)).attr("height", rowH).attr("fill", "transparent")
+        .on("pointermove", (e, p) => {
+          ridges.attr("opacity", q => q === p ? 1 : .35);
+          tip.style("opacity", 1).style("left", (e.clientX + 14) + "px").style("top", (e.clientY + 14) + "px")
+            .html(`<b>${p.mes}</b> · ${p.n} dies<br>Mediana: ${fmt(p.med)}<br>80 % dels dies: ${fmt(p.p10)} – ${fmt(p.p90)}<br>Rang: ${fmt(p.min)} – ${fmt(p.max)}`);
+        })
+        .on("pointerleave", () => { ridges.attr("opacity", 1); tip.style("opacity", 0); });
+
+      d3.select("#kpi").text("+" + fmt(per[6].med - per[0].med));
+      const tb = d3.select("#taula tbody");
+      per.forEach(p => tb.append("tr").html(`<td>${p.mes}</td><td class="n">${p.n}</td><td class="n">${fmt(p.min)}</td><td class="n">${fmt(p.p10)}</td><td class="n">${fmt(p.med)}</td><td class="n">${fmt(p.p90)}</td><td class="n">${fmt(p.max)}</td>`));
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,288 @@
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6b6a65;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, .10);
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --ren-1: #104281;
+  --ren-2: #256abf;
+  --ren-3: #5598e7;
+  --ren-4: #86b6ef;
+  --fos-1: #3d3c39;
+  --fos-2: #6b6a65;
+  --fos-3: #a09e97;
+  --tip-bg: #0b0b0b;
+  --tip-ink: #f9f9f7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #9a988f;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, .10);
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --ren-1: #cde2fb;
+    --ren-2: #86b6ef;
+    --ren-3: #3987e5;
+    --ren-4: #1c5cab;
+    --fos-1: #c3c2b7;
+    --fos-2: #9a988f;
+    --fos-3: #706e68;
+    --tip-bg: #f0efec;
+    --tip-ink: #0b0b0b;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --muted: #9a988f;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, .10);
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --ren-1: #cde2fb;
+  --ren-2: #86b6ef;
+  --ren-3: #3987e5;
+  --ren-4: #1c5cab;
+  --fos-1: #c3c2b7;
+  --fos-2: #9a988f;
+  --fos-3: #706e68;
+  --tip-bg: #f0efec;
+  --tip-ink: #0b0b0b;
+}
+
+* {
+  box-sizing: border-box
+}
+
+html,
+body {
+  margin: 0
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif
+}
+
+main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px 16px 48px
+}
+
+nav {
+  font-size: 14px;
+  color: var(--ink-2);
+  margin-bottom: 24px
+}
+
+nav a {
+  color: var(--ink-2)
+}
+
+h1 {
+  font-size: 28px;
+  line-height: 1.2;
+  margin: 0 0 8px;
+  font-weight: 650;
+  letter-spacing: -.01em
+}
+
+.sub {
+  color: var(--ink-2);
+  margin: 0 0 24px;
+  max-width: 70ch
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 24px;
+  align-items: start
+}
+
+@media (max-width:760px) {
+  .layout {
+    grid-template-columns: 1fr
+  }
+}
+
+svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible
+}
+
+svg text {
+  fill: var(--ink-2);
+  font-size: 13px
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0
+}
+
+.legend .sw {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none
+}
+
+.legend h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  margin: 14px 0 4px;
+  font-weight: 600
+}
+
+.legend h3:first-child {
+  margin-top: 0
+}
+
+.kpi {
+  font-size: 32px;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--ink)
+}
+
+.kpi-l {
+  font-size: 14px;
+  color: var(--ink-2)
+}
+
+.tip {
+  position: fixed;
+  pointer-events: none;
+  background: var(--tip-bg);
+  color: var(--tip-ink);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity .12s;
+  max-width: 260px;
+  z-index: 10
+}
+
+.tip b {
+  font-weight: 650
+}
+
+details {
+  margin-top: 24px
+}
+
+summary {
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: 14px
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums
+}
+
+th,
+td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--grid)
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600
+}
+
+td.n,
+th.n {
+  text-align: right
+}
+
+footer {
+  margin-top: 28px;
+  font-size: 13px;
+  color: var(--muted);
+  border-top: 1px solid var(--grid);
+  padding-top: 16px
+}
+
+footer p {
+  margin: 4px 0
+}
+
+footer a {
+  color: var(--ink-2)
+}
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px
+}
+
+.grid-cards a {
+  text-decoration: none;
+  color: inherit
+}
+
+.grid-cards .card:hover {
+  border-color: var(--axis)
+}
+
+.tag {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted)
+}

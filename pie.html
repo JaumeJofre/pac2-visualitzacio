@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ca">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mix elèctric d'Espanya 2025 – Pie chart</title>
+  <link rel="stylesheet" href="estil.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+</head>
+
+<body>
+  <main>
+    <nav><a href="index.html">← PAC2 · Visualització de dades</a> · Tècnica I: Pie chart</nav>
+    <h1>Més de la meitat de l'electricitat d'Espanya ja és renovable</h1>
+    <p class="sub">Generació elèctrica per font l'any 2025 (287,9 TWh en total). Les fonts renovables, en blau, sumen el
+      55,9 %; les no renovables, en gris, el 44,1 %.</p>
+
+    <div class="card layout">
+      <div id="chart" role="img" aria-label="Pie chart del mix de generació elèctrica d'Espanya 2025"></div>
+      <aside>
+        <div class="kpi">55,9 %</div>
+        <div class="kpi-l">de l'electricitat generada el 2025 va ser renovable</div>
+        <ul class="legend" id="legend" style="margin-top:20px"></ul>
+      </aside>
+    </div>
+
+    <details>
+      <summary>Veure les dades en taula</summary>
+      <table id="taula">
+        <thead>
+          <tr>
+            <th>Font</th>
+            <th>Tipus</th>
+            <th class="n">TWh</th>
+            <th class="n">%</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </details>
+
+    <footer>
+      <p><b>Font:</b> Our World in Data – Energy dataset (dades d'Ember / Energy Institute), columnes
+        <code>*_electricity</code>, Espanya, 2025.
+      </p>
+      <p><b>Preparació:</b> petroli (3,5 %) i carbó (0,3 %) agrupats en una sola porció; la bioenergia ja és inclosa a
+        "altres renovables". La nuclear es classifica com a no renovable (tot i ser baixa en carboni).</p>
+      <p>Jaume Jofre Bravo · M2.959 Visualització de dades · UOC · Eina: D3.js</p>
+    </footer>
+  </main>
+  <div class="tip" id="tip"></div>
+  <script>
+    // Càrrega del CSV net (mateix fitxer descrit al registre de neteja)
+    d3.csv("dades/pie_mix_electric_espanya_2025.csv", d3.autoType).then(rows => {
+      // Ordre de les porcions (renovables primer), etiqueta curta i color de cada font
+      const ordre = [
+        ["Solar", "Solar", "--ren-1"],
+        ["Eòlica", "Eòlica", "--ren-2"],
+        ["Hidràulica", "Hidràulica", "--ren-3"],
+        ["Bioenergia i altres renovables", "Bioenergia i altres", "--ren-4"],
+        ["Gas natural", "Gas natural", "--fos-1"],
+        ["Nuclear", "Nuclear", "--fos-2"],
+        ["Petroli i carbó", "Petroli i carbó", "--fos-3"]
+      ];
+      const dades = ordre.map(([nomCsv, font, c]) => {
+        const r = rows.find(x => x.font === nomCsv);
+        return { font, twh: r.twh, grup: r.renovable === "Sí" ? "Renovable" : "No renovable", c };
+      });
+      const total = d3.sum(dades, d => d.twh);
+      const pct = v => (v / total * 100).toLocaleString("ca-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " %";
+      const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+      const W = 760, H = 480, R = 170, cx = W / 2, cy = H / 2;
+      const svg = d3.select("#chart").append("svg").attr("viewBox", `0 0 ${W} ${H}`);
+      const g = svg.append("g").attr("transform", `translate(${cx},${cy})`);
+
+      const pie = d3.pie().value(d => d.twh).sort(null);
+      const arcs = pie(dades);
+      const arc = d3.arc().innerRadius(0).outerRadius(R).padAngle(0.006);
+      const tip = d3.select("#tip");
+
+      function paint() {
+        g.selectAll("path.slice").attr("fill", d => css(d.data.c)).attr("stroke", css("--surface"));
+        g.selectAll("path.ring").attr("fill", d => d.data === "Renovable" ? css("--ren-2") : css("--fos-2"));
+        d3.selectAll("#legend .sw").style("background", function () { return css(this.dataset.c); });
+      }
+
+      g.selectAll("path.slice").data(arcs).join("path")
+        .attr("class", "slice").attr("d", arc).attr("stroke-width", 2)
+        .on("pointermove", (e, d) => {
+          tip.style("opacity", 1).style("left", (e.clientX + 14) + "px").style("top", (e.clientY + 14) + "px")
+            .html(`<b>${d.data.font}</b><br>${d.data.twh.toLocaleString("ca-ES")} TWh · ${pct(d.data.twh)}<br>${d.data.grup}`);
+          g.selectAll("path.slice").attr("opacity", s => s === d ? 1 : 0.5);
+        })
+        .on("pointerleave", () => { tip.style("opacity", 0); g.selectAll("path.slice").attr("opacity", 1); });
+
+      // Anell exterior: renovable vs no renovable
+      const grups = d3.rollups(dades, v => d3.sum(v, d => d.twh), d => d.grup);
+      const ringArcs = d3.pie().value(d => d[1]).sort(null)(grups).map(a => ({ ...a, data: a.data[0], val: a.data[1] }));
+      const ring = d3.arc().innerRadius(R + 8).outerRadius(R + 13).padAngle(0.02).cornerRadius(3);
+      g.selectAll("path.ring").data(ringArcs).join("path").attr("class", "ring").attr("d", ring);
+
+      // Etiquetes exteriors amb línia guia
+      const lab = d3.arc().innerRadius(R + 40).outerRadius(R + 40);
+      const inner = d3.arc().innerRadius(R - 6).outerRadius(R - 6);
+      arcs.forEach(a => {
+        const mid = (a.startAngle + a.endAngle) / 2;
+        const [x, y] = lab.centroid(a);
+        const right = mid < Math.PI;
+        const ex = (R + 58) * (right ? 1 : -1);
+        g.append("polyline").attr("points", [inner.centroid(a), [x, y], [ex, y]].map(p => p.join(",")).join(" "))
+          .attr("fill", "none").attr("stroke", css("--axis")).attr("stroke-width", 1).attr("class", "guide");
+        const t = g.append("text").attr("x", ex + (right ? 6 : -6)).attr("y", y).attr("text-anchor", right ? "start" : "end").attr("dominant-baseline", "middle");
+        t.append("tspan").text(a.data.font + " ").style("fill", "var(--ink)");
+        t.append("tspan").text(pct(a.data.twh)).style("font-weight", 650).style("fill", "var(--ink)");
+      });
+
+      // Llegenda
+      const leg = d3.select("#legend");
+      ["Renovable", "No renovable"].forEach(gr => {
+        leg.append("h3").text(gr === "Renovable" ? "Renovables · " + pct(d3.sum(dades.filter(d => d.grup === gr), d => d.twh)) : "No renovables · " + pct(d3.sum(dades.filter(d => d.grup === gr), d => d.twh)));
+        dades.filter(d => d.grup === gr).forEach(d => {
+          const li = leg.append("li");
+          li.append("span").attr("class", "sw").attr("data-c", d.c);
+          li.append("span").text(d.font);
+        });
+      });
+
+      // Taula
+      const tb = d3.select("#taula tbody");
+      dades.slice().sort((a, b) => b.twh - a.twh).forEach(d => {
+        tb.append("tr").html(`<td>${d.font}</td><td>${d.grup}</td><td class="n">${d.twh.toLocaleString("ca-ES")}</td><td class="n">${pct(d.twh)}</td>`);
+      });
+
+      paint();
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { paint(); g.selectAll(".guide").attr("stroke", css("--axis")); });
+    });
+  </script>
+</body>
+
+</html>
